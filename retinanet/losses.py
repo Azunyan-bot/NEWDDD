@@ -7,15 +7,15 @@ def calc_iou(a, b):
     # TODO: Please modify and fill the codes below to calculate the iou of the two boxes a and b
     ###################################################################
     
-    area_a = (a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1])
-    area_b = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
+    aa = (a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1])
+    bb = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
 
-    min_xy = torch.max(a[:, None, :2], b[:, :2])
-    max_xy = torch.min(a[:, None, 2:], b[:, 2:])
-    inter = torch.clamp((max_xy - min_xy), min=0)
+    ma = torch.max(a[:, None, :2], b[:, :2])
+    mi = torch.min(a[:, None, 2:], b[:, 2:])
+    inter = torch.clamp((mi - ma), min=0)
     intersection = inter[:, :, 0] * inter[:, :, 1]
     
-    ua = area_a[:, None] + area_b - intersection
+    ua = aa[:, None] + bb - intersection
     IoU = intersection / ua
 
     return IoU
