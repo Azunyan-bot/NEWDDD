@@ -3,28 +3,49 @@ import torch
 import torch.nn as nn
 
 def calc_iou(a, b):
-    ###################################################################
-    # TODO: Please modify and fill the codes below to calculate the iou of the two boxes a and b
-    ###################################################################
+    """
+    Calculate Complete IoU (CIoU) between each pair of boxes.
     
-    area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
-
-    iw = torch.min(torch.unsqueeze(a[:, 2], dim=1), b[:, 2]) - torch.max(torch.unsqueeze(a[:, 0], 1), b[:, 0])
-    ih = torch.min(torch.unsqueeze(a[:, 3], dim=1), b[:, 3]) - torch.max(torch.unsqueeze(a[:, 1], 1), b[:, 1])
-
+    Args:
+    - a (torch.Tensor): Ground truth boxes tensor with shape (N, 4).
+    - b (torch.Tensor): Predicted boxes tensor with shape (M, 4).
+    
+    Returns:
+    - torch.Tensor: CIoU values with shape (N, M).
+    """
+    # Calculate intersection area
+    iw = torch.min(torch.unsqueeze(a[:, 2], dim=1), b[:, 2]) - torch.max(torch.unsqueeze(a[:, 0], dim=1), b[:, 0])
+    ih = torch.min(torch.unsqueeze(a[:, 3], dim=1), b[:, 3]) - torch.max(torch.unsqueeze(a[:, 1], dim=1), b[:, 1])
     iw = torch.clamp(iw, min=0)
     ih = torch.clamp(ih, min=0)
-
-    ua = torch.unsqueeze((a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1]), dim=1) + area - iw * ih
     intersection = iw * ih
 
-    ##################################################################
+    # Calculate union area
+    area_a = (a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1])
+    area_b = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
+    union = torch.unsqueeze(area_a, dim=1) + area_b - intersection
 
-    ua = torch.clamp(ua, min=1e-8)
+    # Calculate IoU
+    iou = intersection / torch.clamp(union, min=1e-8)
 
-    IoU = intersection / ua
+    # Calculate the parameters needed for CIoU
+    cw = torch.max(torch.unsqueeze(a[:, 2], dim=1), b[:, 2]) - torch.min(torch.unsqueeze(a[:, 0], dim=1), b[:, 0])
+    ch = torch.max(torch.unsqueeze(a[:, 3], dim=1), b[:, 3]) - torch.min(torch.unsqueeze(a[:, 1], dim=1), b[:, 1])
+    c2 = cw ** 2 + ch ** 2 + 1e-8
 
-    return IoU
+    # Calculate the center distance
+    rho2 = ((torch.unsqueeze(a[:, 0] + a[:, 2], dim=1) - (b[:, 0] + b[:, 2])) / 2) ** 2 + \
+           ((torch.unsqueeze(a[:, 1] + a[:, 3], dim=1) - (b[:, 1] + b[:, 3])) / 2) ** 2
+
+    # Calculate aspect ratio
+    v = (4 / (math.pi ** 2)) * torch.pow(torch.atan(b[:, 2] - b[:, 0]) / torch.clamp(b[:, 3] - b[:, 1], min=1e-8) -
+                                         torch.atan(a[:, 2] - a[:, 0]) / torch.clamp(a[:, 3] - a[:, 1], min=1e-8), 2)
+    alpha = v / torch.clamp(1 - iou + v, min=1e-8)
+
+    # Calculate CIoU
+    ciou = iou - (rho2 / c2 + v * alpha)
+
+    return ciou
 
 class FocalLoss(nn.Module):
 
